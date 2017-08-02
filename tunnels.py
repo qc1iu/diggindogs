@@ -49,22 +49,36 @@ def server():
 
     conn2.sendall("welcome little doggie!\n\n\n".encode())
     data = conn.recv(4096)
-    g_t.log("send cd to conn1.")
-    conn.sendall("cd\n\n".encode())
+    g_t.log("recv data:")
+    g_t.log(data.decode())
+
+    # send 'cd'
+    conn.sendall("cd\n".encode())
 
     while True:
-        data = conn.recv(4096)
+        d = ""
+        while True:
+            data = conn.recv(4096)
+            data = data.decode()
+            d += data
+            # a dirty hack
+            # changing it according to your shell
+            # To solve the problem, we need a client runing in the INSIDE,
+            # instead of using the re
+            if data.endswith("00m$ "):
+                break;
+
         g_t.log("recv data from conn1")
-        g_t.log("[DATA]", data.decode())
-        g_t.log("[DATA]", data)
+        g_t.log("[DATA]", d)
         g_t.log("send data to conn2.")
-        conn2.sendall(data)
+        conn2.sendall(d.encode())
+
 
         data2 = conn2.recv(4096)
         g_t.log("recv data from conn2")
         g_t.log("[DATA]", data2.decode())
-        g_t.log("[DATA]", data)
         g_t.log("send data to conn1.")
+        g_t.log(data2)
         conn.sendall(data2)
 
 if __name__ == '__main__':
