@@ -2,9 +2,16 @@
 
 import socket
 import sys
+import threading
 from util import Trace
 
 g_t = Trace(indent=2, level=3)
+
+
+def recv_thread(f, t):
+    while True:
+        data = f.recv(4096)
+        t.sendall(data)
 
 
 def server():
@@ -47,39 +54,15 @@ def server():
     conn2, addr2 = s2.accept()
     g_t.log('Connected with ' + addr2[0] + ':' + str(addr2[1]))
 
-    conn2.sendall("welcome little doggie!\n\n\n".encode())
-    data = conn.recv(4096)
-    g_t.log("recv data:")
-    g_t.log(data.decode())
+    t1 = threading.Thread(target=recv_thread, args=(conn, conn2))
+    t2 = threading.Thread(target=recv_thread, args=(conn2, conn))
 
-    # send 'cd'
-    conn.sendall("cd\n".encode())
+    t1.start()
+    t2.start()
 
-    while True:
-        d = ""
-        while True:
-            data = conn.recv(4096)
-            data = data.decode()
-            d += data
-            # a dirty hack
-            # changing it according to your shell
-            # To solve the problem, we need a client runing in the INSIDE,
-            # instead of using the re
-            if data.endswith("00m$ "):
-                break;
+    t1.join()
+    t2.join()
 
-        g_t.log("recv data from conn1")
-        g_t.log("[DATA]", d)
-        g_t.log("send data to conn2.")
-        conn2.sendall(d.encode())
-
-
-        data2 = conn2.recv(4096)
-        g_t.log("recv data from conn2")
-        g_t.log("[DATA]", data2.decode())
-        g_t.log("send data to conn1.")
-        g_t.log(data2)
-        conn.sendall(data2)
 
 if __name__ == '__main__':
     server()
