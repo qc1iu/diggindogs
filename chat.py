@@ -74,13 +74,10 @@ def recv_thread(f, t):
         t.sendall(data)
 
 
-def doit(is_server, remote_ip, debug, port=55555, ifacename="tun0"):
+def doit(is_server, remote_ip, debug, port=55555):
     net_fd = 0
-    net_socket = 0
-    tun_fd = create_tun(ifacename, IFF_TUN | IFF_NO_PI)
-
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     # client
     if is_server == False:
@@ -89,7 +86,7 @@ def doit(is_server, remote_ip, debug, port=55555, ifacename="tun0"):
     # server
     else:
         s.bind(('127.0.0.1', port))
-        s.listen()
+        s.listen(5)
 
         conn, remote_addr = s.accept()
         LOG("[Server] Connected with "
@@ -97,45 +94,17 @@ def doit(is_server, remote_ip, debug, port=55555, ifacename="tun0"):
         net_socket = conn
 
     net_fd = net_socket.fileno()
-    print("net_fd = ", net_fd)
-    rlist = [net_fd, tun_fd]
-    net2tap = 0
-    tap2net = 0
+    rlist = [net_fd, sys.stdin.fileno()]
     while True:
         r_list, w_list, x_list = select.select(rlist, [], [], None)
         for r in r_list:
-            if r is net_fd:
-                plength = os.read(r, 4)
-                plength = struct.unpack("i", plength)
-                plength = plength[0]
-                if plength == 0:
-                    # ctrl-c
-                    break
-                data = os.read(r, plength)
-                net2tap += 1
-                DEBUG("net2tap %d > Read %d bytes from the network\n" %
-                      (net2tap, len(data)))
-                nwrite = os.write(tun_fd, data)
-                DEBUG("Written %d bytes to the tap interface" % nwrite)
-                print(data)
-
+            if r is sys.stdin.fileno():
+                data = os.read(sys.stdin.fileno(), BUFSIZE)
+                os.write(net_fd, data)
             else:
-                # write length
-                data = os.read(r, BUFSIZE)
-                nread = len(data)
-                tap2net += 1
-                DEBUG("tap2net %d > Read %d bytes from the tap interface" %
-                      (tap2net, nread))
-
-                plength = struct.pack("i", nread)
-                os.write(net_fd, plength)
-                nwrite = os.write(net_fd, data)
-
-                DEBUG("tap2net %d > Written %d bytes to the network"
-                      % (tap2net, nwrite))
-                print(data)
-
-    os.close(tun_fd)
+#                data = s.recv(4096)
+                data = os.read(net_fd, BUFSIZE)
+                os.write(sys.stdout.fileno(), data)
 
 
 if __name__ == "__main__":
@@ -147,4 +116,4 @@ if __name__ == "__main__":
     if args.server == False and args.client == None:
         raise Exception("wrong args")
 
-    doit(args.server, args.client, args.debug, args.port, args.ifacename)
+    doit(args.server, args.client, args.debug, args.port)
