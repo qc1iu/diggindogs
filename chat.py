@@ -9,18 +9,6 @@ import binascii
 import sys
 import socket
 
-TUNSETIFF = 0x400454ca
-IFF_TAP = 0x0002
-IFF_TUN = 0x0001
-IFF_NO_PI = 0x1000
-BUFSIZE = 2000
-
-# some common lengths
-IP_HDR_LEN = 20
-ETH_HDR_LEN = 14
-ARP_PKT_LEN = 28
-
-
 def do_args():
     parser = argparse.ArgumentParser(description="simpletun!!")
     parser.add_argument('-i', '--ifacename', type=str, default="tun0")
@@ -44,36 +32,6 @@ def DEBUG(*args, **kw):
 def LOG(*args, **kw):
     print(*args, **kw)
 
-
-def create_tun(name, flags):
-    """
-    type : name string
-    type : flags unsigned int IFF_TUN|IFF_NO_PI
-    rtype : int
-    """
-    fd = os.open("/dev/net/tun", os.O_RDWR)
-    if fd < 0:
-        ERROR("Opening /dev/net/tun")
-
-    ifreq = struct.pack("16sH", name.encode(), flags)
-    ifs = fcntl.ioctl(fd, TUNSETIFF, ifreq)
-
-    tname = ifs[:16].decode().strip("\x00")
-    LOG("Create tun: ", tname, "fd = ", fd)
-    # ioctl
-    return fd
-
-
-def recv_thread(f, t):
-    """
-    type f: socket
-    type t: socket
-    """
-    while True:
-        data = f.recv(4096)
-        t.sendall(data)
-
-
 def doit(is_server, remote_ip, debug, port=55555):
     net_fd = 0
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,11 +40,14 @@ def doit(is_server, remote_ip, debug, port=55555):
     # client
     if is_server == False:
         s.connect((remote_ip, port))
+        LOG("[Client] Connected to remote ", remote_ip, ":", port)
         net_socket = s
     # server
     else:
         s.bind(('127.0.0.1', port))
+        LOG("[Server] Bind 127.0.0.1", ":", port)
         s.listen(5)
+        LOG("[Server] Listening...")
 
         conn, remote_addr = s.accept()
         LOG("[Server] Connected with "

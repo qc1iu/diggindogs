@@ -84,6 +84,7 @@ def doit(is_server, remote_ip, debug, port=55555, ifacename="tun0"):
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     # client
     if is_server == False:
+        LOG("[Client] try to connect to " , remote_ip ,":",port)
         s.connect((remote_ip, port))
         net_socket = s
     # server
